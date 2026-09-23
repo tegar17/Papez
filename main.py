@@ -8,6 +8,7 @@ from torchmetrics.audio import pesq
 from torch.utils.data import DataLoader, random_split
 
 from config.papez_study_libri2mix import config as config2
+from torch.utils.data import DataLoader, random_split, Subset
 
 import core.visualize as vis
 import random
@@ -148,9 +149,21 @@ class LitModule(pl.LightningModule): # define the LightningModule
         if stage in ['fit', 'validate'] or stage is None:
             train_dataset = self.config.train_dataset()
             if hasattr(self.config, 'valid_dataset'):
-                self.train_dataset = train_dataset
+                half_size = len(train_dataset) // 2
+
+                generator = torch.Generator().manual_seed(42)
+                selected_indices = torch.randperm(
+                    len(train_dataset),
+                    generator=generator
+                )[:half_size]
+
+                self.train_dataset = Subset(train_dataset, selected_indices.tolist())
                 self.valid_dataset = self.config.valid_dataset()
+
                 print("VALIDATION DATASET LOADED!")
+                print("Original train samples:", len(train_dataset))
+                print("Used train samples:", len(self.train_dataset))
+                print("Validation samples:", len(self.valid_dataset))
             else:
                 def split_by_percentage(n:int, percent:float):
                     return [int(n * percent), n - int(n * percent)]
